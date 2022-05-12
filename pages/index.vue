@@ -6,6 +6,7 @@
         outlined
         large
         color="indigo"
+        @click="router.push('/staff')"
       >
         <v-icon>mdi-account-supervisor</v-icon>
         <span>Staff management</span>
@@ -18,6 +19,7 @@
         outlined
         large
         color="indigo"
+        @click="router.push('/task')"
       >
         <v-icon>mdi-calendar-check</v-icon>
         <span>Task management</span>
@@ -26,8 +28,18 @@
   </v-row>
 </template>
 
-<script>
-export default {
-  name: 'IndexPage'
-}
+<script lang="ts">
+import { defineComponent, useRouter } from '@nuxtjs/composition-api';
+
+export default defineComponent({
+  name: 'IndexPage',
+
+  setup() {
+    const router = useRouter()
+
+    return {
+      router
+    }
+  }
+})
 </script>
