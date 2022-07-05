@@ -2,7 +2,6 @@
   <v-data-table
     :headers="headers"
     :items="staffs"
-    sort-by="calories"
     class="elevation-1"
   >
     <template v-slot:top>
@@ -27,6 +26,7 @@
               class="mb-2"
               v-bind="attrs"
               v-on="on"
+              @click="addItem"
             >
             <v-icon>mdi-plus-circle</v-icon>
               New staff
@@ -42,25 +42,25 @@
                 <v-row>
                   <v-col cols="12">
                     <v-text-field
-                      v-model="editedItem.username"
+                      v-model="body.username"
                       label="Username"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-text-field
-                      v-model="editedItem.name"
+                      v-model="body.name"
                       label="Name"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-text-field
-                      v-model="editedItem.nickname"
+                      v-model="body.nickname"
                       label="Nickname"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-select
-                    v-model="editedItem.position"
+                      v-model="body.position"
                       :items="itemPosition"
                       label="Position"
                     ></v-select>
@@ -128,7 +128,19 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onBeforeMount, reactive, ref, watch, nextTick, useStore, useRouter } from '@nuxtjs/composition-api';
+import { 
+  computed, 
+  defineComponent, 
+  onBeforeMount, 
+  reactive, 
+  ref, 
+  watch, 
+  nextTick, 
+  useStore, 
+  useRouter 
+} from '@nuxtjs/composition-api';
+
+import { Staff, DropdownType, UpdateStaffBody } from '~/type/staff.type'
 
 export default defineComponent({
   name: 'Staff',
@@ -137,8 +149,8 @@ export default defineComponent({
     const store = useStore()
     const router = useRouter()
 
-    const dialog = ref(false)
-    const dialogDelete = ref(false)
+    const dialog = ref<boolean>(false)
+    const dialogDelete = ref<boolean>(false)
     const headers = computed(() => {
       return [
         {
@@ -168,87 +180,77 @@ export default defineComponent({
         }
       ]
     })
-    let staffs = ref<any[]>([])
+    let staffs = ref<Staff[]>([])
+    const formTitle = ref<string>('New Item')
 
-    const editedIndex = ref(-1)
-    let editedItem = ref({
+    const initialData: Staff = {
       username: '',
       name: '',
       nickname: '',
-      position: ''
-    })
-    const defaultItem = reactive({
-      username: '',
-      name: '',
-      nickname: '',
-      position: ''
-    })
-
-    const itemPosition = computed(() => {
-      return [
-        {
-          text: "Developer",
-          value: 'developer'
-        },
-        {
-          text: "IT Director",
-          value: 'itd'
-        },
-        {
-          text: "Human Resource",
-          value: 'hr'
-        }
-      ]
-    })
-
-    const formTitle = computed(() => {
-      return editedIndex.value === -1 ? 'New Item' : 'Edit Item'
-    })
-
-    const editItem = (item: any) => {
-      editedIndex.value = staffs.value.indexOf(item)
-      editedItem.value = Object.assign({}, item)
-      dialog.value = true
+      position: '',
+      id: ''
     }
 
-    const deleteItem = (item: any) => {
-      editedIndex.value = staffs.value.indexOf(item)
-      editedItem.value = Object.assign({}, item)
+    const body = ref<Staff>({...initialData})
+
+    const itemPosition: DropdownType[] = [
+      {
+        text: "Developer",
+        value: 'developer'        
+      },
+      {
+        text: "IT Director",
+        value: 'itd'
+      },
+      {
+        text: "Human Resource",
+        value: 'hr'
+      }
+    ]
+
+    const editItem = (item: Staff) => {
+      formTitle.value = 'Edit Item'
+      dialog.value = true
+      body.value = {...item}
+    }
+
+    const addItem = () => {
+      formTitle.value = 'New Item'
+    }
+
+    const deleteItem = (item: Staff) => {
       dialogDelete.value = true
+      body.value = item
     }
 
     const deleteItemConfirm = async () => {
-      await store.dispatch('staff/deleteStaff', editedItem.value)
-      staffs.value.splice(editedIndex.value, 1)
+      await store.dispatch('staff/deleteStaff', body.value.id)
       closeDelete()
     }
 
     const close = () => {
       dialog.value = false
-      nextTick(() => {
-        editedItem.value = Object.assign({}, defaultItem)
-        editedIndex.value = -1
-      })
+      body.value = initialData
     }
 
     const closeDelete = () => {
       dialogDelete.value = false
-      nextTick(() => {
-        editedItem.value = Object.assign({}, defaultItem)
-        editedIndex.value = -1
-      })
+      body.value = initialData
     }
 
     const save = async () => {
-      if(editedIndex.value > -1) {
-        await store.dispatch('staff/editStaff', editedItem.value)
-        Object.assign(staffs.value[editedIndex.value], editedItem.value)
+      if (formTitle.value === 'New Item') {
+        await store.dispatch('staff/addStaff', body.value)
       } else {
-        await store.dispatch('staff/addStaff', editedItem.value)
-        staffs.value.push(editedItem.value)
+        await store.dispatch('staff/editStaff',
+          {
+            body: body.value,
+            id: body.value.id
+          }
+        )
+        router.go(0)
       }
       close()
-      router.go(0)
     }
 
 
@@ -275,14 +277,13 @@ export default defineComponent({
       headers,
       itemPosition,
       staffs,
-      editedIndex,
-      editedItem,
-      defaultItem,
       formTitle,
+      body,
       close,
       closeDelete,
       initData,
       editItem,
+      addItem,
       deleteItem,
       deleteItemConfirm,
       save
